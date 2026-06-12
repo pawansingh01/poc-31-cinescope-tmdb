@@ -1,0 +1,15 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    "moduleResolution": "node",
+    "outDir": ".temp/out",
+    "rootDir": ".",
+    "emitDeclarationOnly": false,
+    "noEmit": false,
+    "allowImportingTsExtensions": false
+  },
+  "include": [
+    "data/**/*.ts"
+  ]
+}

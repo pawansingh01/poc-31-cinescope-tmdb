@@ -1,0 +1,22 @@
+# Rayfin local state - never commit
+rayfin/.env
+rayfin/.temp/
+
+# Dependencies and build output
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Environment variants
+.env
+.env.local
+.env.fabric-*
+
+# IMDb raw data - licence prohibits redistribution, downloaded at run time
+data/raw/
+*.tsv
+*.tsv.gz
+
+# OS noise
+.DS_Store
+Thumbs.db

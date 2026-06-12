@@ -1,0 +1,97 @@
+# rayfin.yml - CineScope: Film and TV Analytics (POC 31)
+# Data source: TMDB API. This product uses the TMDB API but is not
+# endorsed or certified by TMDB.
+# Microsoft Fabric Apps backend configuration
+# Rayfin CLI: https://learn.microsoft.com/en-us/fabric/apps/project-structure
+#
+# NOTE: All string values support ${VAR} and ${VAR:-default} interpolation.
+# Variables are resolved from rayfin/.env and the shell environment.
+# Never commit rayfin/.env - use rayfin/.env.example for documentation.
+#
+# Deployment state fields (rayfinItemId, fabricWorkspaceId, endpoint) are
+# written back to this file automatically by `npx rayfin up`. Do not edit
+# those fields manually.
+
+id: poc-31-cinescope-tmdb
+name: CineScope Film and TV Analytics
+version: 1.0.0
+
+services:
+
+  # Auth
+  # Local dev: password auth enabled (email + password, no external dependency)
+  # Deployed:  fabric.enabled MUST be true. Entra SSO is the only supported
+  #            auth method for deployed Fabric Apps. password.enabled is ignored
+  #            after deployment regardless of this setting.
+  auth:
+    enabled: true
+    expiryInMinutes: 60
+    refreshToken:
+      lifetimeInDays: 7
+    customClaims:
+      app: "cinescope-tmdb"
+      poc: "31"
+    scopes:
+      - read:data
+    allowedRedirectUris:
+      - http://localhost:5173
+      - http://localhost:5173/auth/callback
+      # Deployed app redirect URI is written here by `npx rayfin up`
+
+    # Local development only - ignored on deployed app
+    password:
+      enabled: true
+
+    # Fabric brokered auth (Entra SSO) - required for deployed app
+    # Set FABRIC_AUTH_ENABLED=true in rayfin/.env before running `npx rayfin up`
+    fabric:
+      enabled: ${FABRIC_AUTH_ENABLED:-false}
+
+    # Not used in this POC - read-only analytics app, no user registration flows
+    passwordless:
+      magicLink:
+        enabled: false
+        expiryMinutes: 15
+      smsOtp:
+        enabled: false
+
+    # Email service not required - no write-back, no user registration flow
+    email:
+      enabled: false
+
+  # Data
+  # MSSQL is the only supported dialect. Schema is auto-provisioned from
+  # TypeScript entity decorators in rayfin/data/*.ts.
+  # Apply schema changes only: `npx rayfin up db apply`
+  # Destructive changes (drop/alter column): `npx rayfin up db apply --force`
+  data:
+    enabled: true
+    dialect: mssql
+
+  # Storage
+  # Not required for this POC. No binary asset uploads in scope.
+  # Poster images are a documented future enhancement (IMDb datasets do not
+  # include artwork; would require a separate licensed source).
+  storage:
+    enabled: false
+
+  # Static Hosting
+  # Rayfin builds the React frontend and hosts it as a Fabric App static site.
+  # Deploy frontend only (no schema changes): `npx rayfin up staticapp deploy`
+  # Deploy frontend without rebuilding:       `npx rayfin up staticapp deploy --skip-build`
+  # NOTE: Compressed archive must stay under 100MB. Monitor dist/ size.
+  staticHosting:
+    enabled: true
+    root: .
+    folder: dist
+    buildCommand: npm run build
+    indexDocument: index.html
+
+# Deployment state
+# The fields below are written automatically by `npx rayfin up`.
+# Do not edit manually. Commit these values to version control so the
+# workspace binding persists across machines.
+#
+# rayfinItemId: <set by rayfin up>
+# fabricWorkspaceId: <set by rayfin up>
+# endpoint: <set by rayfin up>

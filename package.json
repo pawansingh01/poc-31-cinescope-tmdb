@@ -1,0 +1,61 @@
+{
+  "name": "poc-31-cinescope-tmdb",
+  "version": "1.0.0",
+  "description": "CineScope - Film and TV Analytics on Microsoft Fabric with Rayfin, powered by TMDB data. POC 31 in the Microsoft Fabric MVP portfolio. This product uses the TMDB API but is not endorsed or certified by TMDB.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "rayfin dev",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "typecheck": "tsc --noEmit",
+
+    "rayfin:up": "npx rayfin up",
+    "rayfin:up:dry": "npx rayfin up --dry-run",
+    "rayfin:status": "npx rayfin up status --json",
+    "rayfin:db": "npx rayfin up db apply",
+    "rayfin:db:force": "npx rayfin up db apply --force",
+    "rayfin:frontend": "npx rayfin up staticapp deploy",
+    "rayfin:frontend:skip-build": "npx rayfin up staticapp deploy --skip-build",
+    "rayfin:login": "npx rayfin login"
+  },
+  "dependencies": {
+    "@microsoft/rayfin-client": "^1.33.1",
+    "@microsoft/rayfin-core": "^1.33.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "recharts": "^2.12.7"
+  },
+  "devDependencies": {
+    "@microsoft/rayfin-cli": "^1.33.1",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@typescript-eslint/eslint-plugin": "^7.13.0",
+    "@typescript-eslint/parser": "^7.13.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "eslint": "^8.57.0",
+    "eslint-plugin-react-hooks": "^4.6.2",
+    "eslint-plugin-react-refresh": "^0.4.7",
+    "typescript": "^5.2.2",
+    "vite": "^5.3.1"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "keywords": [
+    "microsoft-fabric",
+    "rayfin",
+    "tmdb",
+    "analytics",
+    "data-visualisation",
+    "recharts",
+    "poc"
+  ],
+  "author": "Pawan Singh (Albert)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pawan--singh/poc-31-cinescope-tmdb.git"
+  }
+}
