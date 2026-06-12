@@ -1,4 +1,4 @@
-# POC 31 - CineScope: Claude Handoff Summary
+# POC 31 - CineScope: Project Brief
 
 ## 1. What POC 31 Is
 
@@ -82,8 +82,7 @@ Facts verified in this POC against the shipped packages (v1.33.1):
 - API key: free Developer registration; lives only in notebook config
   cells, cleared before every commit; never in frontend code
 - Why not IMDb datasets: licence grey area for professionally published
-  portfolio content, no-redistribution constraint. Full rationale in
-  docs/ADR-002
+  portfolio content, no-redistribution constraint
 
 **Scope cut (agreed with PK):** movies + TV, `vote_count >= 500`,
 released 1950 onwards. Roughly 12-18k titles, 50-70k credit rows,
@@ -118,7 +117,7 @@ on-demand queries (Principal by title_id / person_id)
 poc-31-cinescope-tmdb/
 ├── poc-31-cinescope-tmdb.md         this file
 ├── README.md                        overview, decisions, gotchas
-├── SETUP_GUIDE.md                   Phases 0-9 + troubleshooting table
+├── SETUP_GUIDE.md                   build runbook, Phases 0-8
 ├── .gitignore                       excludes rayfin/.env, dist, keys, raw data
 ├── .eslintrc.cjs                    lint config
 ├── package.json                     verified package names, rayfin:* scripts
@@ -144,31 +143,25 @@ poc-31-cinescope-tmdb/
 │   ├── 02_ingest_tmdb_credits.ipynb
 │   └── 03_build_aggregates_and_sync.ipynb
 └── docs/
-    ├── architecture.md
-    ├── ADR-001-rayfin-as-app-layer.md
-    ├── ADR-002-tmdb-as-data-source.md
-    └── blog-post-skeleton.md
+    └── architecture.md
 ```
 
 -----
 
 ## 6. Verification Status (as of 2026-06-12)
 
-Verified by compilation and build:
+Verified end to end against a live Fabric deployment:
 
-- Entities compile against `@microsoft/rayfin-core` 1.33.1 (tsc clean)
-- Frontend typechecks (tsc clean) and builds (Vite, ~171KB gzipped)
-- All three notebooks are valid JSON
-- Package names confirmed against the npm registry
-
-NOT yet verified (requires PK's Fabric tenant):
-
-- `npx rayfin up` end to end; actual generated SQL table names
-  (Notebook 03 has a documented sys.tables check and adjustable targets)
-- The preview query builder surface at runtime - `fetchAll()` in
-  src/lib/client.ts probes take/skip and degrades to unpaged; if the
-  client surface shifted, that one file is the place to adjust
-- TMDB row counts at the agreed threshold (Notebook 01 prints evidence)
+- Entities compile against `@microsoft/rayfin-core` 1.33.x and the schema
+  is applied (generated tables are pluralised: Titles, People, Principals,
+  YearStats, GenreYearStats)
+- All three notebooks executed; all five tables loaded via the OPENJSON
+  bulk path
+- Frontend builds (~175KB gzipped), authenticates via Fabric brokered
+  sign-in, and renders all four views with live data at the hosted URL
+- Local dev requires the Vite proxy in vite.config.ts (the SDK issues
+  relative requests in dev mode) and the
+  @microsoft/rayfin-auth-provider-fabric sign-in flow
 
 -----
 

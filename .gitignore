@@ -20,3 +20,4 @@ data/raw/
 # OS noise
 .DS_Store
 Thumbs.db
+vite.config.ts.timestamp-*.mjs

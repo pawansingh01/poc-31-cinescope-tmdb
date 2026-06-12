@@ -289,6 +289,18 @@ body {
   color: var(--accent);
 }
 
+.signin-button {
+  background: var(--accent);
+  border: none;
+  border-radius: 8px;
+  color: #0f1320;
+  font-size: 15px;
+  font-weight: 600;
+  padding: 12px 28px;
+  cursor: pointer;
+  margin-top: 12px;
+}
+
 .app-footer {
   border-top: 1px solid var(--panel-border);
   padding: 16px 0 24px;

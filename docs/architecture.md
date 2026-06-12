@@ -1,8 +1,8 @@
 # CineScope Architecture - POC 31
 
 Film and TV analytics on Microsoft Fabric with Rayfin (Fabric Apps, preview).
-This document is the architecture narrative; decision rationale lives in the
-ADRs alongside it.
+This document is the architecture narrative; decision rationale is in the
+README's design-decisions table.
 
 ## Component view
 

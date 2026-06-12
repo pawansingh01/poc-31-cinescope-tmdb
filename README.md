@@ -101,5 +101,3 @@ file containing a TMDB API key are excluded and must stay excluded.
 
 - [SETUP_GUIDE.md](SETUP_GUIDE.md) - phased build and deploy guide
 - [docs/architecture.md](docs/architecture.md) - architecture narrative and data flow
-- [docs/ADR-001-rayfin-as-app-layer.md](docs/ADR-001-rayfin-as-app-layer.md) - why Rayfin over a conventional app stack
-- [docs/ADR-002-tmdb-as-data-source.md](docs/ADR-002-tmdb-as-data-source.md) - why TMDB over IMDb datasets

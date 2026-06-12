@@ -3,14 +3,16 @@
 // attribution footer. The footer notice must remain prominent - it is
 // a condition of the TMDB API terms.
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useCineData } from './hooks/useCineData';
+import { ensureFabricSignIn, signOutFabric } from './lib/client';
 import RatingsTrends from './components/RatingsTrends';
 import GenreAnalysis from './components/GenreAnalysis';
 import PeopleAnalytics from './components/PeopleAnalytics';
 import SearchExplore from './components/SearchExplore';
 
 type Tab = 'trends' | 'genres' | 'people' | 'explore';
+type AuthState = 'checking' | 'needs-signin' | 'signed-in' | 'error';
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'trends', label: 'Ratings & Trends' },
@@ -19,9 +21,71 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'explore', label: 'Search & Explore' },
 ];
 
+// Data loading lives below the auth gate so no API call happens before
+// the Fabric session exists.
+function AuthedApp({ tab }: { tab: Tab }) {
+  const data = useCineData();
+
+  return (
+    <>
+      {data.loading && (
+        <div className="status-panel">Loading data from Fabric…</div>
+      )}
+      {data.error && (
+        <div className="status-panel error">
+          <strong>Could not load data.</strong>
+          <p>{data.error}</p>
+          <p>
+            Check that the app is deployed (`npx rayfin up`), the database
+            is seeded (Notebooks 01-03), and `npx rayfin env` has written
+            the Vite environment file.
+          </p>
+        </div>
+      )}
+      {!data.loading && !data.error && (
+        <>
+          {tab === 'trends' && <RatingsTrends data={data} />}
+          {tab === 'genres' && <GenreAnalysis data={data} />}
+          {tab === 'people' && <PeopleAnalytics data={data} />}
+          {tab === 'explore' && <SearchExplore data={data} />}
+        </>
+      )}
+    </>
+  );
+}
+
 export default function App() {
   const [tab, setTab] = useState<Tab>('trends');
-  const data = useCineData();
+  const [auth, setAuth] = useState<AuthState>('checking');
+  const [authError, setAuthError] = useState<string | null>(null);
+
+  // Silent attempt on load (existing session / refresh token / embedded
+  // handoff). If those fail, fall back to an explicit button so the
+  // portal tab is opened from a user gesture.
+  useEffect(() => {
+    ensureFabricSignIn()
+      .then(() => setAuth('signed-in'))
+      .catch(() => setAuth('needs-signin'));
+  }, []);
+
+  async function signIn() {
+    try {
+      await ensureFabricSignIn();
+      setAuth('signed-in');
+    } catch {
+      // Stale local session (e.g. from an earlier failed flow) can poison
+      // the refresh step. Hard sign-out clears it, then retry once - the
+      // waterfall then falls through to the Fabric broker tab.
+      try {
+        await signOutFabric();
+        await ensureFabricSignIn();
+        setAuth('signed-in');
+      } catch (e) {
+        setAuthError(e instanceof Error ? e.message : String(e));
+        setAuth('error');
+      }
+    }
+  }
 
   return (
     <div className="app">
@@ -46,28 +110,28 @@ export default function App() {
       </header>
 
       <main className="app-main">
-        {data.loading && (
-          <div className="status-panel">Loading data from Fabric…</div>
+        {auth === 'checking' && (
+          <div className="status-panel">Checking Fabric session…</div>
         )}
-        {data.error && (
+        {auth === 'needs-signin' && (
+          <div className="status-panel">
+            <p>Sign in with your Fabric identity to load the data.</p>
+            <button className="signin-button" onClick={signIn}>
+              Sign in with Microsoft Fabric
+            </button>
+          </div>
+        )}
+        {auth === 'error' && (
           <div className="status-panel error">
-            <strong>Could not load data.</strong>
-            <p>{data.error}</p>
+            <strong>Sign-in failed.</strong>
+            <p>{authError}</p>
             <p>
-              Check that the app is deployed (`npx rayfin up`), the database
-              is seeded (Notebooks 01-03), and `npx rayfin env` has written
-              the Vite environment file.
+              Check that pop-ups are allowed for this site and that your
+              account has access to the Fabric workspace.
             </p>
           </div>
         )}
-        {!data.loading && !data.error && (
-          <>
-            {tab === 'trends' && <RatingsTrends data={data} />}
-            {tab === 'genres' && <GenreAnalysis data={data} />}
-            {tab === 'people' && <PeopleAnalytics data={data} />}
-            {tab === 'explore' && <SearchExplore data={data} />}
-          </>
-        )}
+        {auth === 'signed-in' && <AuthedApp tab={tab} />}
       </main>
 
       <footer className="app-footer">

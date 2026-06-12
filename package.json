@@ -5,12 +5,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "rayfin dev",
+    "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "typecheck": "tsc --noEmit",
-
     "rayfin:up": "npx rayfin up",
     "rayfin:up:dry": "npx rayfin up --dry-run",
     "rayfin:status": "npx rayfin up status --json",
@@ -21,6 +20,7 @@
     "rayfin:login": "npx rayfin login"
   },
   "dependencies": {
+    "@microsoft/rayfin-auth-provider-fabric": "^1.33.2",
     "@microsoft/rayfin-client": "^1.33.1",
     "@microsoft/rayfin-core": "^1.33.1",
     "react": "^18.3.1",
