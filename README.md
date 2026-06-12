@@ -92,7 +92,7 @@ npx rayfin up staticapp deploy # ship the frontend
 
 ## Repository
 
-`https://github.com/pawan--singh/poc-31-cinescope-tmdb`
+`https://github.com/pawansingh01/poc-31-cinescope-tmdb`
 
 All code, notebooks, and configuration are committed. `rayfin/.env` and any
 file containing a TMDB API key are excluded and must stay excluded.
