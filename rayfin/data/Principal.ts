@@ -24,7 +24,9 @@ export class Principal {
 
   // Foreign key to Title - follows Rayfin {property}_id convention.
   // Explicitly declared so Notebook 03 can set it directly when upserting.
-  @text({ max: 50 })
+  // Must be @uuid(), not @text(): the schema validator requires FK columns
+  // backing @one() relationships to be UUID-typed.
+  @uuid()
   title_id!: string;
 
   // Navigation: many Principals -> one Title
@@ -32,7 +34,7 @@ export class Principal {
   title?: Title;
 
   // Foreign key to Person - follows Rayfin {property}_id convention.
-  @text({ max: 50 })
+  @uuid()
   person_id!: string;
 
   // Navigation: many Principals -> one Person

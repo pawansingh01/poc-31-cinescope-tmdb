@@ -1,0 +1,15 @@
+{
+  "deployments": {
+    "cinescope-tmdb-poc31": {
+      "fabricItemId": "1b27887e-a587-44c1-94cb-cdbf1f5a2ac1",
+      "fabricApiUrl": "https://westeurope.pbidedicated.windows.net/webapi/capacities/3d744ae9-10b1-4d62-b41c-8303423a8d65/workloads/BaaS/BaaSService/automatic/v1/workspaces/9369ba2a-f818-400d-8959-cd51348ffb65/appbackends/1b27887e-a587-44c1-94cb-cdbf1f5a2ac1",
+      "fabricWorkspaceId": "9369ba2a-f818-400d-8959-cd51348ffb65",
+      "fabricTenantId": "ed384c1e-04ea-480b-bfd9-589af0163597",
+      "publishableKey": "pk-MCp09Z6vHEk9jQq4uhGz",
+      "hostingUrl": "https://safe-pond-a9f656b9e5-westeurope.webapp.fabricapps.net",
+      "fabricDeepLink": "https://app.fabric.microsoft.com/groups/9369ba2a-f818-400d-8959-cd51348ffb65/appbackends/1b27887e-a587-44c1-94cb-cdbf1f5a2ac1?ctid=ed384c1e-04ea-480b-bfd9-589af0163597",
+      "deployedAt": "2026-06-12T21:06:10.178Z"
+    }
+  },
+  "active": "cinescope-tmdb-poc31"
+}

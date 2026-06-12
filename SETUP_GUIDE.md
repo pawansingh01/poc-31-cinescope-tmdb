@@ -177,16 +177,35 @@ Obligations accepted with the key (already implemented in the app):
    rayfin.yml, apply schema, build and deploy static frontend, write
    deployment state back to rayfin.yml.
 
-4. Verify in the portal: the workspace now contains a Fabric App item.
-   Open it and locate the **SQL endpoint** (server) and **database name** -
-   Notebook 03 needs both. Confirm the five tables exist; note their exact
-   generated names:
+4. Apply the schema explicitly and verify it landed:
 
-   ```sql
-   SELECT name FROM sys.tables ORDER BY name;
+   ```bash
+   npx rayfin up db apply --verbose
    ```
 
-5. Commit the state the CLI wrote into `rayfin/rayfin.yml`
+   Known trap (hit in the first build): the CLI compiles entities with
+   `rayfin/tsconfig.json` but scans the hard-coded path
+   `rayfin/.temp/compiled/` for the output. `outDir` must be
+   `.temp/compiled` or every deploy reports success with an empty schema.
+   This repo has the correct value; do not change it.
+
+5. Collect Notebook 03's connection values in the portal. Open the App's
+   child **SQL database** item > Settings > **Connection strings**:
+
+   - `SQL_SERVER` = the Data Source host, `*.database.fabric.microsoft.com`,
+     WITHOUT the `,1433`. This is the writable endpoint. The SQL analytics
+     endpoint (`*.datawarehouse.fabric.microsoft.com`) accepts connections
+     and metadata reads but rejects all DML with error 24559 - do not use it
+   - `SQL_DATABASE` = the Initial Catalog value VERBATIM. It carries a
+     generated GUID suffix (`poc-31-cinescope-tmdb-3b4be5dd-...`); the
+     unsuffixed name does not exist on the writable endpoint
+
+   Confirm the tables in the database query editor. Rayfin pluralises
+   table names, including irregular plurals (verified live):
+   Titles, People, Principals, YearStats, GenreYearStats, plus the
+   auth service's Users.
+
+6. Commit the state the CLI wrote into `rayfin/rayfin.yml`
    (rayfinItemId, fabricWorkspaceId, endpoint):
 
    ```bash
@@ -263,33 +282,32 @@ If you see repeated 429 responses in the output, lower `MAX_WORKERS` to 4.
 
 ### Notebook 03 - build aggregates and sync to Rayfin SQL
 
-You touch one cell:
+You touch one cell, with the two values from Phase 5 step 5:
 
-- `SQL_SERVER = ""` - the Fabric App item's SQL endpoint from Phase 5
-- `SQL_DATABASE = ""` - the database name from Phase 5
+- `SQL_SERVER = ""` - writable endpoint host, no port (the cell asserts
+  you have not pasted the analytics endpoint)
+- `SQL_DATABASE = ""` - the GUID-suffixed Initial Catalog, verbatim
 
-What it does: computes Person career stats (vote-weighted), YearStat and
-GenreYearStat aggregates; generates deterministic uuid5 primary keys from
-natural keys so re-runs upsert instead of duplicating; connects with the
-notebook's Entra identity (`notebookutils` token, pyodbc); bulk-upserts via
-staged MERGE - parents (Title, Person) before children (Principal), stat
-tables as full refresh.
+Then Run All. What it does: computes Person career stats (vote-weighted),
+YearStat and GenreYearStat aggregates; generates deterministic uuid5
+primary keys; connects with the notebook's Entra identity and asserts the
+database is READ_WRITE; resolves the pluralised table names from
+INFORMATION_SCHEMA; full-refresh loads all five tables via
+`INSERT ... SELECT FROM OPENJSON(?)` with column types read from the
+target tables - all type conversion is server-side by design (client-side
+pyodbc binding of pandas data failed three distinct ways in the first
+build: nullable-int float upcast, dtype re-inference in DataFrame.where,
+numpy scalar binding).
 
 Good output:
 
-- Row counts printed per table after sync: Title 12-18k, Person 10-15k,
-  Principal 50-70k, YearStat ~150, GenreYearStat 2-4k
+- `READ_WRITE` printed after connect; five `rows inserted` lines
+- Final counts: Title 12-18k, Person 10-15k, Principal 50-70k,
+  YearStat ~150, GenreYearStat 2-4k
 - Runtime: minutes
 
-Two known failure modes, both with documented fixes in the final markdown
-cell:
-
-- **Table names**: Rayfin generates the schema; if generated names differ
-  from entity class names (pluralisation, schema prefix), adjust the
-  `upsert` targets per your Phase 5 `sys.tables` check
-- **pyodbc / ODBC driver**: the Fabric Spark runtime ships pyodbc and ODBC
-  Driver 18. If `import pyodbc` fails on your runtime version, add a first
-  cell: `%pip install pyodbc`
+If `import pyodbc` fails on your runtime version, add a first cell:
+`%pip install pyodbc`.
 
 After all three: clear both API key cells, then:
 
