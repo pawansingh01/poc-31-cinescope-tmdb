@@ -72,7 +72,12 @@ Views: Ratings & Trends | Genre Analysis | People Analytics | Search & Explore
 - Every entity must be registered in `rayfin/data/schema.ts` or it silently misses the GraphQL API
 - `FABRIC_AUTH_ENABLED=true` must be set in `rayfin/.env` before the first `npx rayfin up`
 - `optional: true` in the decorator makes a column nullable; the TypeScript `?` alone does not
-- Notebook 03 targets the generated SQL tables directly; if Rayfin's generated names differ from entity names, adjust the upsert targets (query `sys.tables`)
+- **CLI compiled-output contract (verified live):** the CLI compiles entities with `rayfin/tsconfig.json` but scans the hard-coded path `rayfin/.temp/compiled/`. Any other `outDir` makes every deploy report success while applying an empty schema
+- **Generated table names (verified live):** Rayfin pluralises with irregular English plurals - Titles, People, Principals, YearStats, GenreYearStats. Notebook 03 resolves names from `INFORMATION_SCHEMA` rather than assuming
+- **FK columns must be `@uuid()`** - the schema validator rejects `@text` foreign keys backing `@one()` relationships
+- **Two SQL endpoints (verified live):** the App's child SQL database has a writable endpoint (`*.database.fabric.microsoft.com`) and a read-only analytics endpoint (`*.datawarehouse.fabric.microsoft.com`) that accepts connections and metadata queries but rejects DML with error 24559. The catalog name carries a generated GUID suffix - copy it verbatim from the connection string
+- **Bulk loading:** pandas-to-pyodbc parameter binding fails in multiple ways (nullable-int float upcast, dtype re-inference, numpy scalars); Notebook 03 loads via `INSERT ... SELECT FROM OPENJSON(?)` with column types read from the target table
+- **Local dev needs two pieces a hand-built project misses:** the Vite proxy in `vite.config.ts` (the SDK issues relative requests in dev mode - without it everything 404s) and Fabric brokered sign-in via `@microsoft/rayfin-auth-provider-fabric` (anonymous data-plane calls also 404, not 401)
 - TMDB `popularity` is recalculated daily by TMDB; treat it as a snapshot metric, it is labelled as such in the UI
 - Service principal login is not supported by the Rayfin CLI yet; deploys are interactive
 
