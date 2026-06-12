@@ -1,72 +1,17 @@
 # CineScope Build Runbook - POC 31
 
-The single authoritative guide for building, deploying, and publishing this
-POC. Written for macOS (Apple Silicon) with VS Code; Fabric work happens
+The guide for building, deploying, and publishing this
+POC. Fabric work happens
 browser-first in the Fabric portal.
 
 Workspace: **CineScope-TMDb-POC31** · Repo: **poc-31-cinescope-tmdb**
 Fabric Apps (preview) is assumed already enabled in the tenant.
 
-Phases are ordered. Each ends with a verification step; do not move on
-until it passes.
+Phases are ordered. Each ends with a verification step.
 
 -----
 
-## Phase 0 - Prerequisites
-
-| Requirement | Check |
-|---|---|
-| macOS with Xcode Command Line Tools | `xcode-select -p` prints a path |
-| Node.js 18+ and npm 9+ | `node -v && npm -v` |
-| Git | `git -v` |
-| GitHub CLI | `gh --version` |
-| VS Code | `code -v` |
-| Fabric workspace access | Contributor or higher on CineScope-TMDb-POC31 |
-| TMDB account | Created in Phase 4 |
-
-Install anything missing:
-
-```bash
-xcode-select --install        # needed by node-gyp for the CLI's native keytar module
-brew install node gh          # or use nvm if you manage Node versions
-```
-
-Why Xcode CLT matters: `@microsoft/rayfin-cli` depends on `keytar` (native
-credential storage for `rayfin login`). Without the CLT, `npm install`
-fails at node-gyp with a long stack trace.
-
------
-
-## Phase 1 - VS Code setup
-
-1. Open the project: `File > Open Folder` on `poc-31-cinescope-tmdb`,
-   or from a terminal:
-
-   ```bash
-   cd poc-31-cinescope-tmdb && code .
-   ```
-
-2. Install two extensions (Cmd+Shift+X):
-   - **ESLint** (`dbaeumer.vscode-eslint`) - inline lint against `.eslintrc.cjs`
-   - **GitHub Pull Requests** (`github.vscode-pull-request-github`) - optional,
-     useful once the repo exists
-
-3. TypeScript: use the workspace version so VS Code matches the build.
-   Open any `.ts` file, Cmd+Shift+P, "TypeScript: Select TypeScript
-   Version", choose "Use Workspace Version".
-
-4. Do all terminal work in the integrated terminal (Ctrl+backtick) - the
-   rest of this runbook assumes you are in the project root.
-
-Note on decorators: this project deliberately does NOT set
-`experimentalDecorators`. rayfin-core 1.33.x ships standard TC39 decorator
-typings; the flag breaks compilation. If VS Code underlines `@entity()`,
-you are on the built-in TS version instead of the workspace one - fix via
-step 3.
-
------
-
-## Phase 2 - Install and first verification
+## Phase 1 - Install and first verification
 
 ```bash
 npm install
@@ -82,7 +27,7 @@ version breaks them, pin back to 1.33.x and note the drift for the blog.
 
 -----
 
-## Phase 3 - GitHub via gh CLI
+## Phase 2 - GitHub via gh CLI
 
 One-time auth (browser flow):
 
@@ -111,28 +56,14 @@ git check-ignore rayfin/.env dist node_modules && echo "ignores OK"
 git ls-files | grep -iE "\.env$|api_key|tmdb.*key" && echo "STOP - key tracked" || echo "no keys tracked"
 grep -rn "TMDB_API_KEY = \"" notebooks/ | grep -v '= ""' && echo "STOP - key in notebook" || echo "notebooks clean"
 ```
-
-Three things must never reach GitHub: `rayfin/.env`, a TMDB key in any
-notebook cell, raw TMDB data dumps. The `.gitignore` covers the first and
-third; the notebook key check is manual and runs before every commit that
-touches `notebooks/`.
-
-Commit cadence for the rest of the build: commit at the end of each phase
-with the phase name in the message. After Phase 5, also commit the
-deployment state the CLI writes into `rayfin/rayfin.yml`.
-
 -----
 
-## Phase 4 - TMDB API key
+## Phase 3 - TMDB API key
 
 1. Create an account: <https://www.themoviedb.org/signup>
-2. Request a key: <https://www.themoviedb.org/settings/api> - choose
-   **Developer**, accept the terms, describe the use as non-commercial
+2. Request a key: <https://www.themoviedb.org/settings/api> - accept the terms, describe the use as non-commercial
    analytics POC with attribution
-3. Copy the **API Key (v3 auth)** string - the notebooks use v3 query-param
-   auth, not the v4 read token
-4. Store it in your password manager. It will be pasted into notebook
-   config cells only, and cleared before commits
+3. Copy the **API Key** string. It will be pasted into notebook config cells only
 
 Obligations accepted with the key (already implemented in the app):
 
@@ -143,7 +74,7 @@ Obligations accepted with the key (already implemented in the app):
 
 -----
 
-## Phase 5 - Rayfin configure, login, deploy backend
+## Phase 4 - Rayfin configure, login, deploy backend
 
 1. Configure:
 
@@ -193,19 +124,15 @@ Obligations accepted with the key (already implemented in the app):
    child **SQL database** item > Settings > **Connection strings**:
 
    - `SQL_SERVER` = the Data Source host, `*.database.fabric.microsoft.com`,
-     WITHOUT the `,1433`. This is the writable endpoint. The SQL analytics
-     endpoint (`*.datawarehouse.fabric.microsoft.com`) accepts connections
-     and metadata reads but rejects all DML with error 24559 - do not use it
+     WITHOUT the `,1433`. This is the writable endpoint.
    - `SQL_DATABASE` = the Initial Catalog value VERBATIM. It carries a
-     generated GUID suffix (`poc-31-cinescope-tmdb-3b4be5dd-...`); the
-     unsuffixed name does not exist on the writable endpoint
+     generated GUID suffix (`poc-31-cinescope-tmdb-3b4be5dd-...`);
 
-   Confirm the tables in the database query editor. Rayfin pluralises
-   table names, including irregular plurals (verified live):
+   Confirm the tables in the database query editor:
    Titles, People, Principals, YearStats, GenreYearStats, plus the
    auth service's Users.
 
-6. Commit the state the CLI wrote into `rayfin/rayfin.yml`
+6. Commit the state CLI wrote into `rayfin/rayfin.yml`
    (rayfinItemId, fabricWorkspaceId, endpoint):
 
    ```bash
@@ -215,7 +142,7 @@ Obligations accepted with the key (already implemented in the app):
 
 -----
 
-## Phase 6 - Fabric workspace data setup
+## Phase 5 - Fabric workspace data setup
 
 In the portal, inside CineScope-TMDb-POC31:
 
@@ -227,35 +154,26 @@ In the portal, inside CineScope-TMDb-POC31:
    - `03_build_aggregates_and_sync.ipynb`
 3. Open each notebook and attach `cinescope_lake` as the **default
    lakehouse** (Explorer pane > Add lakehouse). The notebooks read and
-   write Delta tables through it
+   write Delta tables through it.
 
 -----
 
-## Phase 7 - Run the notebooks
+## Phase 6 - Run the notebooks
 
-Run order is 01 then 02 then 03. Each subsection lists the cells you touch,
-what the notebook does, and what good output looks like.
+Run order is 01 then 02 then 03. 
 
 ### Notebook 01 - ingest TMDB titles
 
 You touch one cell:
 
 - `TMDB_API_KEY = ""` - paste your key
-- `VOTE_COUNT_MIN = 500`, `YEAR_FROM = 1950`, `YEAR_TO = 2026` - the agreed
-  scope; leave unless deliberately re-scoping
+- `VOTE_COUNT_MIN = 500`, `YEAR_FROM = 1950`, `YEAR_TO = 2026` 
 
 What it does: pulls genre id-to-name maps, then pages
 `/discover/movie` and `/discover/tv` year by year with
 `vote_count.gte=500` (year slices keep every query far below the 500-page
 API cap), normalises rows, writes the `raw_titles` Delta table as a full
 overwrite.
-
-Good output:
-
-- The threshold evidence cell prints counts at vote_count 200 / 500 /
-  1000 / 5000 - screenshot this for the blog, it is the scope-cut evidence
-- Final cell prints `raw_titles written: N rows` with N roughly 12-18k
-- Runtime: minutes
 
 ### Notebook 02 - ingest TMDB credits
 
@@ -270,19 +188,9 @@ What it does: for every title in `raw_titles`, fetches credits - movies via
 TV via `/tv/{id}/aggregate_credits`. Keeps directors plus top-3 billed
 cast, appends to `raw_credits`, merges movie runtimes onto `raw_titles`.
 
-Good output:
-
-- Progress prints every 1,000 titles; failures stay near zero
-- Final cell prints category counts (director and cast rows)
-- Runtime: 10-20 minutes for ~15k API calls
-- Idempotent: if the session dies, run it again - already-fetched titles
-  are skipped via the `raw_credits` checkpoint
-
-If you see repeated 429 responses in the output, lower `MAX_WORKERS` to 4.
-
 ### Notebook 03 - build aggregates and sync to Rayfin SQL
 
-You touch one cell, with the two values from Phase 5 step 5:
+You touch one cell:
 
 - `SQL_SERVER = ""` - writable endpoint host, no port (the cell asserts
   you have not pasted the analytics endpoint)
@@ -290,36 +198,20 @@ You touch one cell, with the two values from Phase 5 step 5:
 
 Then Run All. What it does: computes Person career stats (vote-weighted),
 YearStat and GenreYearStat aggregates; generates deterministic uuid5
-primary keys; connects with the notebook's Entra identity and asserts the
-database is READ_WRITE; resolves the pluralised table names from
-INFORMATION_SCHEMA; full-refresh loads all five tables via
-`INSERT ... SELECT FROM OPENJSON(?)` with column types read from the
-target tables - all type conversion is server-side by design (client-side
-pyodbc binding of pandas data failed three distinct ways in the first
-build: nullable-int float upcast, dtype re-inference in DataFrame.where,
-numpy scalar binding).
-
-Good output:
-
-- `READ_WRITE` printed after connect; five `rows inserted` lines
-- Final counts: Title 12-18k, Person 10-15k, Principal 50-70k,
-  YearStat ~150, GenreYearStat 2-4k
-- Runtime: minutes
-
-If `import pyodbc` fails on your runtime version, add a first cell:
-`%pip install pyodbc`.
+primary keys; full-refresh loads all five tables with column types read from the
+target tables.
 
 After all three: clear both API key cells, then:
 
 ```bash
-git add notebooks/ && git commit -m "Phase 7: ingestion run complete, keys cleared" && git push
+git add notebooks/ && git commit -m "Phase 6: ingestion run complete, keys cleared" && git push
 ```
 
 Diarise today + 6 months as the TMDB refresh/teardown date.
 
 -----
 
-## Phase 8 - Frontend: local verification, then deploy
+## Phase 7 - Frontend: local verification, then deploy
 
 Local first, against the live Fabric backend:
 
@@ -329,14 +221,6 @@ npm run dev
 ```
 
 Open <http://localhost:5173>. All four views should render with data.
-If the error panel shows instead, check in order: `npx rayfin up status`,
-Notebook 03 row counts, the generated `.env` file in the project.
-
-One file owns all data access: `src/lib/client.ts`. If the preview query
-builder surface changed since authoring (paging, predicate shape), that is
-the only file to adjust - `fetchAll()` already degrades from paged to
-unpaged reads automatically.
-
 Then ship it:
 
 ```bash
