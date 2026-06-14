@@ -5,7 +5,7 @@
 
 import { useEffect, useState } from 'react';
 import { useCineData } from './hooks/useCineData';
-import { ensureFabricSignIn, signOutFabric } from './lib/client';
+import { ensureFabricSignIn, initEmbeddedSession, signOutFabric } from './lib/client';
 import RatingsTrends from './components/RatingsTrends';
 import GenreAnalysis from './components/GenreAnalysis';
 import PeopleAnalytics from './components/PeopleAnalytics';
@@ -59,13 +59,24 @@ export default function App() {
   const [auth, setAuth] = useState<AuthState>('checking');
   const [authError, setAuthError] = useState<string | null>(null);
 
-  // Silent attempt on load (existing session / refresh token / embedded
-  // handoff). If those fail, fall back to an explicit button so the
-  // portal tab is opened from a user gesture.
+  // On load: first try the EMBEDDED handoff (silent, when running inside the
+  // Fabric Portal iframe). If not embedded, try a silent brokered sign-in
+  // (existing session / refresh token). If both fail, fall back to an explicit
+  // button so the portal tab is opened from a user gesture.
   useEffect(() => {
-    ensureFabricSignIn()
-      .then(() => setAuth('signed-in'))
-      .catch(() => setAuth('needs-signin'));
+    (async () => {
+      try {
+        if (await initEmbeddedSession()) {
+          setAuth('signed-in');
+          return;
+        }
+      } catch {
+        /* not embedded or handoff failed — fall through to the popup flow */
+      }
+      ensureFabricSignIn()
+        .then(() => setAuth('signed-in'))
+        .catch(() => setAuth('needs-signin'));
+    })();
   }, []);
 
   async function signIn() {

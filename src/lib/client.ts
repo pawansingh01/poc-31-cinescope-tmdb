@@ -14,26 +14,40 @@
 // (VITE_RAYFIN_API_URL, VITE_RAYFIN_PUBLISHABLE_KEY - verified names).
 
 import { RayfinClient } from '@microsoft/rayfin-client';
-import { ensureSignedInWithFabric } from '@microsoft/rayfin-auth-provider-fabric';
+import {
+  ensureSignedInWithFabric,
+  initEmbeddedAuth,
+} from '@microsoft/rayfin-auth-provider-fabric';
 
 export const client = new RayfinClient({
   baseUrl: import.meta.env.VITE_RAYFIN_API_URL ?? 'http://localhost:5168',
   publishableKey: import.meta.env.VITE_RAYFIN_PUBLISHABLE_KEY ?? '',
 });
 
-// Fabric brokered sign-in. The data plane rejects anonymous requests when
-// fabric auth is enabled (observed as HTTP 404, not 401). Steps 1-3 of the
-// helper's waterfall are silent (existing session, refresh token, embedded
-// handoff); step 4 opens the Fabric portal in a new tab and MUST be called
-// from a user-gesture handler to avoid popup blockers.
+const fabricOptions = {
+  workspaceId: import.meta.env.VITE_FABRIC_WORKSPACE_ID ?? '',
+  projectId: import.meta.env.VITE_FABRIC_ITEM_ID ?? '',
+  fabricPortalUrl:
+    import.meta.env.VITE_FABRIC_PORTAL_URL ?? 'https://app.fabric.microsoft.com',
+  returnOrigin: window.location.origin,
+};
+
+// Embedded (iframe) sign-in: when the app runs INSIDE the Fabric Portal this
+// does the silent postMessage handoff and inherits the user's session — no
+// popup, no button. Returns true when a session is established, false when the
+// app is NOT embedded (standalone) — then we fall back to the popup flow.
+// THIS is the call that makes the app load inside Fabric; the popup-only
+// `ensureSignedInWithFabric` cannot complete inside the iframe.
+export async function initEmbeddedSession(): Promise<boolean> {
+  const session = await initEmbeddedAuth((client as any).auth, fabricOptions);
+  return !!session?.isAuthenticated;
+}
+
+// Fabric brokered popup sign-in (standalone, outside the Portal). Steps 1-3 are
+// silent (existing session / refresh token); step 4 opens the Fabric portal in
+// a new tab and MUST be called from a user-gesture handler (the Sign-in button).
 export async function ensureFabricSignIn(): Promise<void> {
-  await ensureSignedInWithFabric((client as any).auth, {
-    workspaceId: import.meta.env.VITE_FABRIC_WORKSPACE_ID ?? '',
-    projectId: import.meta.env.VITE_FABRIC_ITEM_ID ?? '',
-    fabricPortalUrl:
-      import.meta.env.VITE_FABRIC_PORTAL_URL ?? 'https://app.fabric.microsoft.com',
-    returnOrigin: window.location.origin,
-  });
+  await ensureSignedInWithFabric((client as any).auth, fabricOptions);
 }
 
 // Hard sign-out: clears any stale local session so the next sign-in
