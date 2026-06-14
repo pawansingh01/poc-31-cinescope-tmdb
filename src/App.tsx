@@ -5,7 +5,13 @@
 
 import { useEffect, useState } from 'react';
 import { useCineData } from './hooks/useCineData';
-import { ensureFabricSignIn, initEmbeddedSession, signOutFabric } from './lib/client';
+import {
+  ensureFabricSignIn,
+  hasActiveSession,
+  initEmbeddedSession,
+  signOutFabric,
+  withTimeout,
+} from './lib/client';
 import RatingsTrends from './components/RatingsTrends';
 import GenreAnalysis from './components/GenreAnalysis';
 import PeopleAnalytics from './components/PeopleAnalytics';
@@ -65,14 +71,22 @@ export default function App() {
   // button so the portal tab is opened from a user gesture.
   useEffect(() => {
     (async () => {
+      // 0) Reuse a stored session — makes refresh instant and avoids re-running
+      //    the one-shot embedded handoff (which hangs on a second attempt).
+      if (hasActiveSession()) {
+        setAuth('signed-in');
+        return;
+      }
+      // 1) Embedded (iframe) handoff, time-boxed so it can never hang the UI.
       try {
-        if (await initEmbeddedSession()) {
+        if (await withTimeout(initEmbeddedSession(), 8000, false)) {
           setAuth('signed-in');
           return;
         }
       } catch {
         /* not embedded or handoff failed — fall through to the popup flow */
       }
+      // 2) Standalone: silent brokered sign-in, else the explicit button.
       ensureFabricSignIn()
         .then(() => setAuth('signed-in'))
         .catch(() => setAuth('needs-signin'));

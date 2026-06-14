@@ -43,6 +43,27 @@ export async function initEmbeddedSession(): Promise<boolean> {
   return !!session?.isAuthenticated;
 }
 
+// Already-authenticated check. The session is persisted (localStorage), so on a
+// page refresh we can reuse it directly instead of re-running the embedded
+// handoff — the Fabric shell only emits the handoff once, so re-awaiting it
+// after a refresh hangs forever ("Checking Fabric session…").
+export function hasActiveSession(): boolean {
+  try {
+    return !!(client as any).auth.getSession?.()?.isAuthenticated;
+  } catch {
+    return false;
+  }
+}
+
+// Race a promise against a timeout so a hung auth handoff can never freeze the
+// UI on the "checking" state.
+export function withTimeout<T>(p: Promise<T>, ms: number, onTimeout: T): Promise<T> {
+  return Promise.race([
+    p,
+    new Promise<T>((resolve) => setTimeout(() => resolve(onTimeout), ms)),
+  ]);
+}
+
 // Fabric brokered popup sign-in (standalone, outside the Portal). Steps 1-3 are
 // silent (existing session / refresh token); step 4 opens the Fabric portal in
 // a new tab and MUST be called from a user-gesture handler (the Sign-in button).
