@@ -8,6 +8,7 @@ import { useCineData } from './hooks/useCineData';
 import {
   ensureFabricSignIn,
   hasActiveSession,
+  hasStoredSession,
   initEmbeddedSession,
   signOutFabric,
   withTimeout,
@@ -71,9 +72,11 @@ export default function App() {
   // button so the portal tab is opened from a user gesture.
   useEffect(() => {
     (async () => {
-      // 0) Reuse a stored session — makes refresh instant and avoids re-running
-      //    the one-shot embedded handoff (which hangs on a second attempt).
-      if (hasActiveSession()) {
+      // 0) Reuse a stored session — makes refresh instant and avoids the slow
+      //    embedded handoff. hasActiveSession() covers a live access token;
+      //    hasStoredSession() covers an expired-but-refreshable one (the common
+      //    case after the 60-min token lapses) — the SDK refreshes on first use.
+      if (hasActiveSession() || hasStoredSession()) {
         setAuth('signed-in');
         return;
       }

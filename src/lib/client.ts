@@ -55,6 +55,25 @@ export function hasActiveSession(): boolean {
   }
 }
 
+// A stored, REFRESHABLE session — present in localStorage with a refresh token.
+// `getSession()` reports not-authenticated once the short-lived access token
+// expires, even though the (7-day) refresh token can still restore it. In that
+// state we should NOT re-run the slow embedded handoff: just treat the user as
+// signed in and let the SDK refresh the access token on the first data call.
+export function hasStoredSession(): boolean {
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const v = localStorage.getItem(localStorage.key(i) as string) ?? '';
+      if (!v.includes('refreshToken')) continue;
+      const o = JSON.parse(v);
+      if (o && o.accessToken && o.refreshToken) return true;
+    }
+  } catch {
+    /* ignore parse/storage errors */
+  }
+  return false;
+}
+
 // Race a promise against a timeout so a hung auth handoff can never freeze the
 // UI on the "checking" state.
 export function withTimeout<T>(p: Promise<T>, ms: number, onTimeout: T): Promise<T> {
