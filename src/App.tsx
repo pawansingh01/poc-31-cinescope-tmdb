@@ -32,31 +32,40 @@ const TABS: { key: Tab; label: string }[] = [
 // the Fabric session exists.
 function AuthedApp({ tab }: { tab: Tab }) {
   const data = useCineData();
+  const needsDetail = tab === 'people' || tab === 'explore';
+
+  // Phase-1 (stat tables) still loading, or it failed outright.
+  if (data.loading) {
+    return <div className="status-panel">Loading data from Fabric…</div>;
+  }
+  if (data.error && data.yearStats.length === 0) {
+    return (
+      <div className="status-panel error">
+        <strong>Could not load data.</strong>
+        <p>{data.error}</p>
+        <p>
+          Check that the app is deployed (`npx rayfin up`), the database is
+          seeded (Notebooks 01-03), and `npx rayfin env` has written the Vite
+          environment file.
+        </p>
+      </div>
+    );
+  }
+  // The People/Search tabs need the heavy Title/Person tables (phase 2).
+  if (needsDetail && data.detailLoading) {
+    return (
+      <div className="status-panel">
+        Loading titles &amp; people from Fabric… (the charts above are ready)
+      </div>
+    );
+  }
 
   return (
     <>
-      {data.loading && (
-        <div className="status-panel">Loading data from Fabric…</div>
-      )}
-      {data.error && (
-        <div className="status-panel error">
-          <strong>Could not load data.</strong>
-          <p>{data.error}</p>
-          <p>
-            Check that the app is deployed (`npx rayfin up`), the database
-            is seeded (Notebooks 01-03), and `npx rayfin env` has written
-            the Vite environment file.
-          </p>
-        </div>
-      )}
-      {!data.loading && !data.error && (
-        <>
-          {tab === 'trends' && <RatingsTrends data={data} />}
-          {tab === 'genres' && <GenreAnalysis data={data} />}
-          {tab === 'people' && <PeopleAnalytics data={data} />}
-          {tab === 'explore' && <SearchExplore data={data} />}
-        </>
-      )}
+      {tab === 'trends' && <RatingsTrends data={data} />}
+      {tab === 'genres' && <GenreAnalysis data={data} />}
+      {tab === 'people' && <PeopleAnalytics data={data} />}
+      {tab === 'explore' && <SearchExplore data={data} />}
     </>
   );
 }

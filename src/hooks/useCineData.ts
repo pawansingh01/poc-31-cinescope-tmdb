@@ -21,6 +21,7 @@ import type {
 
 export interface CineData {
   loading: boolean;
+  detailLoading: boolean;
   error: string | null;
   titles: TitleRow[];
   people: PersonRow[];
@@ -33,6 +34,7 @@ export interface CineData {
 
 export function useCineData(): CineData {
   const [loading, setLoading] = useState(true);
+  const [detailLoading, setDetailLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [titles, setTitles] = useState<TitleRow[]>([]);
   const [people, setPeople] = useState<PersonRow[]>([]);
@@ -43,60 +45,21 @@ export function useCineData(): CineData {
     let cancelled = false;
 
     async function load() {
+      // Phase 1 — small precomputed stat tables. The dashboard charts
+      // (Ratings & Trends, Genre Analysis) read these, so the app is usable in
+      // a couple of seconds instead of waiting on the ~30k Title/Person rows.
       try {
-        const [titleRows, personRows, yearRows, genreRows] = await Promise.all([
-          fetchAll<TitleRow>('Title', [
-            'id',
-            'tmdbKey',
-            'mediaType',
-            'title',
-            'releaseYear',
-            'decade',
-            'runtimeMinutes',
-            'genres',
-            'voteAverage',
-            'voteCount',
-            'popularity',
-            'posterPath',
-            'originalLanguage',
-            'isSeries',
-          ]),
-          fetchAll<PersonRow>('Person', [
-            'id',
-            'tmdbKey',
-            'name',
-            'knownForDepartment',
-            'profilePath',
-            'dominantRole',
-            'titleCount',
-            'avgRating',
-            'totalVotes',
-          ]),
+        const [yearRows, genreRows] = await Promise.all([
           fetchAll<YearStatRow>('YearStat', [
-            'id',
-            'statKey',
-            'year',
-            'mediaType',
-            'titleCount',
-            'avgRating',
-            'avgRuntime',
-            'totalVotes',
+            'id', 'statKey', 'year', 'mediaType',
+            'titleCount', 'avgRating', 'avgRuntime', 'totalVotes',
           ]),
           fetchAll<GenreYearStatRow>('GenreYearStat', [
-            'id',
-            'statKey',
-            'genre',
-            'year',
-            'mediaType',
-            'titleCount',
-            'avgRating',
-            'totalVotes',
+            'id', 'statKey', 'genre', 'year', 'mediaType',
+            'titleCount', 'avgRating', 'totalVotes',
           ]),
         ]);
-
         if (cancelled) return;
-        setTitles(titleRows);
-        setPeople(personRows);
         setYearStats(yearRows.sort((a, b) => a.year - b.year));
         setGenreYearStats(genreRows);
         setLoading(false);
@@ -104,6 +67,32 @@ export function useCineData(): CineData {
         if (cancelled) return;
         setError(e instanceof Error ? e.message : String(e));
         setLoading(false);
+        setDetailLoading(false);
+        return;
+      }
+
+      // Phase 2 — heavy Title/Person tables, loaded in the background for the
+      // People Analytics and Search & Explore tabs (filtered client-side).
+      try {
+        const [titleRows, personRows] = await Promise.all([
+          fetchAll<TitleRow>('Title', [
+            'id', 'tmdbKey', 'mediaType', 'title', 'releaseYear', 'decade',
+            'runtimeMinutes', 'genres', 'voteAverage', 'voteCount', 'popularity',
+            'posterPath', 'originalLanguage', 'isSeries',
+          ]),
+          fetchAll<PersonRow>('Person', [
+            'id', 'tmdbKey', 'name', 'knownForDepartment', 'profilePath',
+            'dominantRole', 'titleCount', 'avgRating', 'totalVotes',
+          ]),
+        ]);
+        if (cancelled) return;
+        setTitles(titleRows);
+        setPeople(personRows);
+        setDetailLoading(false);
+      } catch (e) {
+        if (cancelled) return;
+        setError(e instanceof Error ? e.message : String(e));
+        setDetailLoading(false);
       }
     }
 
@@ -128,6 +117,7 @@ export function useCineData(): CineData {
 
   return {
     loading,
+    detailLoading,
     error,
     titles,
     people,
