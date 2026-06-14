@@ -66,30 +66,34 @@ export default function App() {
   const [auth, setAuth] = useState<AuthState>('checking');
   const [authError, setAuthError] = useState<string | null>(null);
 
-  // On load: first try the EMBEDDED handoff (silent, when running inside the
-  // Fabric Portal iframe). If not embedded, try a silent brokered sign-in
-  // (existing session / refresh token). If both fail, fall back to an explicit
-  // button so the portal tab is opened from a user gesture.
+  // On load, ESTABLISH a real SDK session before showing the app — otherwise
+  // data calls go out unauthenticated and fail ("Network error: Load failed").
+  // ensureFabricSignIn()/initEmbeddedSession() RESOLVING means the SDK now holds
+  // a live token, so we trust resolution (don't gate on getSession()).
   useEffect(() => {
     (async () => {
-      // 0) Reuse a stored session — makes refresh instant and avoids the slow
-      //    embedded handoff. hasActiveSession() covers a live access token;
-      //    hasStoredSession() covers an expired-but-refreshable one (the common
-      //    case after the 60-min token lapses) — the SDK refreshes on first use.
+      // 1) Existing/stored session (e.g. after a refresh, access token expired
+      //    but refresh token valid): the silent brokered steps restore + refresh
+      //    it INTO the SDK and resolve before the hang-prone handoff. Time-boxed.
       if (hasActiveSession() || hasStoredSession()) {
-        setAuth('signed-in');
-        return;
+        try {
+          await withTimeout(ensureFabricSignIn(), 8000);
+          setAuth('signed-in');
+          return;
+        } catch {
+          /* timed out / failed — fall through */
+        }
       }
-      // 1) Embedded (iframe) handoff, time-boxed so it can never hang the UI.
+      // 2) First load inside the Portal → embedded iframe handoff.
       try {
-        if (await withTimeout(initEmbeddedSession(), 8000, false)) {
+        if (await withTimeout(initEmbeddedSession(), 10000)) {
           setAuth('signed-in');
           return;
         }
       } catch {
         /* not embedded or handoff failed — fall through to the popup flow */
       }
-      // 2) Standalone: silent brokered sign-in, else the explicit button.
+      // 3) Standalone: silent brokered sign-in, else the explicit button.
       ensureFabricSignIn()
         .then(() => setAuth('signed-in'))
         .catch(() => setAuth('needs-signin'));

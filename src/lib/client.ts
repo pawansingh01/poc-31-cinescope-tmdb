@@ -74,12 +74,15 @@ export function hasStoredSession(): boolean {
   return false;
 }
 
-// Race a promise against a timeout so a hung auth handoff can never freeze the
-// UI on the "checking" state.
-export function withTimeout<T>(p: Promise<T>, ms: number, onTimeout: T): Promise<T> {
+// Race a promise against a timeout that REJECTS, so a hung auth handoff can
+// never freeze the UI on "checking" — the caller's catch falls through. We
+// reject (not resolve) so that a resolved race always means real success.
+export function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
   return Promise.race([
     p,
-    new Promise<T>((resolve) => setTimeout(() => resolve(onTimeout), ms)),
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error('auth-timeout')), ms),
+    ),
   ]);
 }
 
