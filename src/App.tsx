@@ -5,7 +5,14 @@
 
 import { useEffect, useState } from 'react';
 import { useCineData } from './hooks/useCineData';
-import { ensureFabricSignIn, signOutFabric } from './lib/client';
+import {
+  ensureFabricSignIn,
+  hasActiveSession,
+  hasStoredSession,
+  initEmbeddedSession,
+  signOutFabric,
+  withTimeout,
+} from './lib/client';
 import RatingsTrends from './components/RatingsTrends';
 import GenreAnalysis from './components/GenreAnalysis';
 import PeopleAnalytics from './components/PeopleAnalytics';
@@ -25,31 +32,40 @@ const TABS: { key: Tab; label: string }[] = [
 // the Fabric session exists.
 function AuthedApp({ tab }: { tab: Tab }) {
   const data = useCineData();
+  const needsDetail = tab === 'people' || tab === 'explore';
+
+  // Phase-1 (stat tables) still loading, or it failed outright.
+  if (data.loading) {
+    return <div className="status-panel">Loading data from Fabric…</div>;
+  }
+  if (data.error && data.yearStats.length === 0) {
+    return (
+      <div className="status-panel error">
+        <strong>Could not load data.</strong>
+        <p>{data.error}</p>
+        <p>
+          Check that the app is deployed (`npx rayfin up`), the database is
+          seeded (Notebooks 01-03), and `npx rayfin env` has written the Vite
+          environment file.
+        </p>
+      </div>
+    );
+  }
+  // The People/Search tabs need the heavy Title/Person tables (phase 2).
+  if (needsDetail && data.detailLoading) {
+    return (
+      <div className="status-panel">
+        Loading titles &amp; people from Fabric… (the charts above are ready)
+      </div>
+    );
+  }
 
   return (
     <>
-      {data.loading && (
-        <div className="status-panel">Loading data from Fabric…</div>
-      )}
-      {data.error && (
-        <div className="status-panel error">
-          <strong>Could not load data.</strong>
-          <p>{data.error}</p>
-          <p>
-            Check that the app is deployed (`npx rayfin up`), the database
-            is seeded (Notebooks 01-03), and `npx rayfin env` has written
-            the Vite environment file.
-          </p>
-        </div>
-      )}
-      {!data.loading && !data.error && (
-        <>
-          {tab === 'trends' && <RatingsTrends data={data} />}
-          {tab === 'genres' && <GenreAnalysis data={data} />}
-          {tab === 'people' && <PeopleAnalytics data={data} />}
-          {tab === 'explore' && <SearchExplore data={data} />}
-        </>
-      )}
+      {tab === 'trends' && <RatingsTrends data={data} />}
+      {tab === 'genres' && <GenreAnalysis data={data} />}
+      {tab === 'people' && <PeopleAnalytics data={data} />}
+      {tab === 'explore' && <SearchExplore data={data} />}
     </>
   );
 }
@@ -59,13 +75,38 @@ export default function App() {
   const [auth, setAuth] = useState<AuthState>('checking');
   const [authError, setAuthError] = useState<string | null>(null);
 
-  // Silent attempt on load (existing session / refresh token / embedded
-  // handoff). If those fail, fall back to an explicit button so the
-  // portal tab is opened from a user gesture.
+  // On load, ESTABLISH a real SDK session before showing the app — otherwise
+  // data calls go out unauthenticated and fail ("Network error: Load failed").
+  // ensureFabricSignIn()/initEmbeddedSession() RESOLVING means the SDK now holds
+  // a live token, so we trust resolution (don't gate on getSession()).
   useEffect(() => {
-    ensureFabricSignIn()
-      .then(() => setAuth('signed-in'))
-      .catch(() => setAuth('needs-signin'));
+    (async () => {
+      // 1) Existing/stored session (e.g. after a refresh, access token expired
+      //    but refresh token valid): the silent brokered steps restore + refresh
+      //    it INTO the SDK and resolve before the hang-prone handoff. Time-boxed.
+      if (hasActiveSession() || hasStoredSession()) {
+        try {
+          await withTimeout(ensureFabricSignIn(), 8000);
+          setAuth('signed-in');
+          return;
+        } catch {
+          /* timed out / failed — fall through */
+        }
+      }
+      // 2) First load inside the Portal → embedded iframe handoff.
+      try {
+        if (await withTimeout(initEmbeddedSession(), 10000)) {
+          setAuth('signed-in');
+          return;
+        }
+      } catch {
+        /* not embedded or handoff failed — fall through to the popup flow */
+      }
+      // 3) Standalone: silent brokered sign-in, else the explicit button.
+      ensureFabricSignIn()
+        .then(() => setAuth('signed-in'))
+        .catch(() => setAuth('needs-signin'));
+    })();
   }, []);
 
   async function signIn() {
